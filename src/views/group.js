@@ -1,8 +1,8 @@
 import { h } from '../dom.js';
 import { formatAmount } from '../money.js';
 import { totalSpent } from '../ledger.js';
-import { getGroup } from '../store.js';
-import { links } from '../router.js';
+import { getGroup, saveGroup } from '../store.js';
+import { links, navigate } from '../router.js';
 import { renderNotFound } from './notFound.js';
 
 const dateFormat = new Intl.DateTimeFormat('en-GB', {
@@ -15,6 +15,10 @@ const dateFormat = new Intl.DateTimeFormat('en-GB', {
 export function renderGroup(groupId) {
   const group = getGroup(groupId);
   if (!group) return renderNotFound('This group does not exist.');
+  function save() {
+    if (!saveGroup(group)) alert('The browser refused to save. Free up storage and try again.');
+    navigate(links.group(group.id));
+  }
   const nameOf = (id) => group.members.find((m) => m.id === id)?.name ?? '?';
   const splitText = (e) =>
     e.splitBetween.length === group.members.length ? 'everyone' : e.splitBetween.map(nameOf).join(', ');
@@ -56,8 +60,8 @@ export function renderGroup(groupId) {
               'li',
               { class: 'activity expense' },
               h(
-                'div',
-                { class: 'list-item' },
+                'a',
+                { class: 'list-item', href: links.editExpense(group.id, e.id) },
                 h(
                   'span',
                   { class: 'list-title' },
@@ -69,6 +73,20 @@ export function renderGroup(groupId) {
                   { class: 'muted' },
                   `${nameOf(e.paidBy)} paid · split between ${splitText(e)} · ${dateFormat.format(e.createdAt)}`,
                 ),
+              ),
+              h(
+                'button',
+                {
+                  type: 'button',
+                  class: 'btn btn-secondary btn-small',
+                  'aria-label': `Delete ${e.description}`,
+                  onclick: () => {
+                    if (!confirm(`Delete "${e.description}"?`)) return;
+                    group.expenses = group.expenses.filter((x) => x.id !== e.id);
+                    save();
+                  },
+                },
+                'Delete',
               ),
             ),
           ),

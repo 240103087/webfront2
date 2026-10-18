@@ -85,6 +85,19 @@ describe('edit group', () => {
     expect(buttons.map((b) => b.disabled)).toEqual([true, true, false]);
   });
 
+  it('lets a member be removed again once their expense is deleted', async () => {
+    const g = await existingGroup();
+    const [a, d] = g.members;
+    g.expenses.push({ id: 'e1', description: 'x', amount: 100, paidBy: a.id, splitBetween: [d.id], createdAt: 1 });
+    saveGroup(g);
+    await go('#/');
+    await go(`#/group/${g.id}`);
+    vi.spyOn(window, 'confirm').mockReturnValueOnce(true);
+    await click(byText('button', 'Delete'));
+    await go(`#/group/${g.id}/edit`);
+    expect($$('.member-row button').map((b) => b.disabled)).toEqual([false, false, false]);
+  });
+
   it('deletes the group after confirmation, and not without it', async () => {
     const g = await existingGroup();
     await go(`#/group/${g.id}/edit`);

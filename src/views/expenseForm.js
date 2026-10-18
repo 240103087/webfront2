@@ -1,13 +1,16 @@
 import { h, errorList } from '../dom.js';
-import { parseAmount } from '../money.js';
+import { parseAmount, toInputValue } from '../money.js';
 import { MAX_DESCRIPTION_LENGTH, makeExpense, validateExpense } from '../ledger.js';
 import { getGroup, saveGroup } from '../store.js';
 import { links, navigate } from '../router.js';
 import { renderNotFound } from './notFound.js';
 
-export function renderExpenseForm(groupId) {
+/** New expense when expenseId is undefined, edit otherwise. */
+export function renderExpenseForm(groupId, expenseId) {
   const group = getGroup(groupId);
   if (!group) return renderNotFound('This group does not exist.');
+  const existing = expenseId ? group.expenses.find((e) => e.id === expenseId) : null;
+  if (expenseId && !existing) return renderNotFound('This expense does not exist.');
 
   const errorsSlot = h('div');
   const description = h('input', {
@@ -16,6 +19,7 @@ export function renderExpenseForm(groupId) {
     name: 'description',
     maxlength: MAX_DESCRIPTION_LENGTH,
     placeholder: 'Dinner, taxi, tickets…',
+    value: existing?.description ?? '',
   });
   const amount = h('input', {
     type: 'text',
@@ -23,12 +27,13 @@ export function renderExpenseForm(groupId) {
     name: 'amount',
     inputmode: 'decimal',
     placeholder: '0',
+    value: existing ? toInputValue(existing.amount) : '',
   });
   const paidBy = h(
     'select',
     { id: 'expense-paid-by', name: 'paidBy' },
     group.members.map((m) =>
-      h('option', { value: m.id }, m.name),
+      h('option', { value: m.id, selected: existing?.paidBy === m.id }, m.name),
     ),
   );
   const checkboxes = group.members.map((m) =>
@@ -36,7 +41,7 @@ export function renderExpenseForm(groupId) {
       type: 'checkbox',
       name: 'splitBetween',
       value: m.id,
-      checked: true,
+      checked: existing ? existing.splitBetween.includes(m.id) : true,
     }),
   );
   const splitList = h(
@@ -68,7 +73,12 @@ export function renderExpenseForm(groupId) {
     const errors = validateExpense(group, input);
     errorsSlot.replaceChildren(errorList(errors) ?? '');
     if (errors.length) return;
-    group.expenses.push(makeExpense(input));
+    if (existing) {
+      const updated = { ...makeExpense(input), id: existing.id, createdAt: existing.createdAt };
+      group.expenses = group.expenses.map((e) => (e.id === existing.id ? updated : e));
+    } else {
+      group.expenses.push(makeExpense(input));
+    }
     if (!saveGroup(group)) {
       errorsSlot.replaceChildren(
         errorList(['The browser refused to save. Free up storage and try again.']),
@@ -82,7 +92,7 @@ export function renderExpenseForm(groupId) {
     'section',
     {},
     h('p', { class: 'breadcrumb' }, h('a', { class: 'link', href: links.group(group.id) }, `← ${group.name}`)),
-    h('h1', { class: 'page-heading' }, 'New expense'),
+    h('h1', { class: 'page-heading' }, existing ? 'Edit expense' : 'New expense'),
     h(
       'form',
       { class: 'panel form-fields', novalidate: true, onsubmit: onSubmit },
@@ -97,7 +107,7 @@ export function renderExpenseForm(groupId) {
       h(
         'div',
         { class: 'actions' },
-        h('button', { type: 'submit', class: 'btn btn-primary' }, 'Add expense'),
+        h('button', { type: 'submit', class: 'btn btn-primary' }, existing ? 'Save' : 'Add expense'),
         h('a', { class: 'btn btn-secondary', href: links.group(group.id) }, 'Cancel'),
       ),
     ),

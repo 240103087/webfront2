@@ -1,5 +1,5 @@
 // Hash routes: #/, #/new, #/group/<id>, #/group/<id>/edit,
-// #/group/<id>/expense/new
+// #/group/<id>/expense/new, #/group/<id>/expense/<expenseId>
 
 export function parseRoute(hash) {
   const path = (hash || '').replace(/^#/, '') || '/';
@@ -10,8 +10,10 @@ export function parseRoute(hash) {
     const groupId = parts[1];
     if (parts.length === 2) return { name: 'group', groupId };
     if (parts.length === 3 && parts[2] === 'edit') return { name: 'edit-group', groupId };
-    if (parts.length === 4 && parts[2] === 'expense' && parts[3] === 'new') {
-      return { name: 'new-expense', groupId };
+    if (parts.length === 4 && parts[2] === 'expense') {
+      return parts[3] === 'new'
+        ? { name: 'new-expense', groupId }
+        : { name: 'edit-expense', groupId, expenseId: parts[3] };
     }
   }
   return { name: 'not-found' };
@@ -23,6 +25,8 @@ export const links = {
   group: (id) => `#/group/${encodeURIComponent(id)}`,
   editGroup: (id) => `#/group/${encodeURIComponent(id)}/edit`,
   newExpense: (id) => `#/group/${encodeURIComponent(id)}/expense/new`,
+  editExpense: (id, eid) =>
+    `#/group/${encodeURIComponent(id)}/expense/${encodeURIComponent(eid)}`,
 };
 
 export function navigate(hash) {

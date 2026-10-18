@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { $, $$, byText, click, go, startApp, submit, type } from './helpers.js';
 import { createGroup } from '../src/groups.js';
 import { getGroup, saveGroup } from '../src/store.js';
@@ -10,6 +10,8 @@ async function setup() {
   await go(`#/group/${g.id}/expense/new`);
   return g;
 }
+
+afterEach(() => vi.restoreAllMocks());
 
 const boxes = () => $$('input[name="splitBetween"]');
 
@@ -107,4 +109,62 @@ describe('expense screen edge cases', () => {
     await go(`#/group/${g.id}`);
     expect($('main').textContent).toContain('No expenses yet. Add the first one.');
   });
+});
+
+describe('edit and delete expense', () => {
+  async function withExpense() {
+    const g = await setup();
+    await addExpense('Dinner', '900', 0);
+    return getGroup(g.id);
+  }
+
+  it('opens the expense filled in and saves changes in place', async () => {
+    const g = await withExpense();
+    const [e] = g.expenses;
+    await go($('[data-testid="activity"] a.list-item').getAttribute('href'));
+    expect(location.hash).toBe(`#/group/${g.id}/expense/${e.id}`);
+    expect($('#expense-description').value).toBe('Dinner');
+    expect($('#expense-amount').value).toBe('900');
+    type($('#expense-amount'), '1200.5');
+    boxes()[2].checked = false;
+    await submit($('form'));
+    const saved = getGroup(g.id).expenses;
+    expect(saved).toHaveLength(1);
+    expect(saved[0]).toMatchObject({ id: e.id, amount: 120050, createdAt: e.createdAt });
+    expect(saved[0].splitBetween).toHaveLength(2);
+  });
+
+  it('deletes only after confirmation', async () => {
+    const g = await withExpense();
+    vi.spyOn(window, 'confirm').mockReturnValueOnce(false);
+    await click(byText('button', 'Delete'));
+    expect(getGroup(g.id).expenses).toHaveLength(1);
+    vi.spyOn(window, 'confirm').mockReturnValueOnce(true);
+    await click(byText('button', 'Delete'));
+    expect(getGroup(g.id).expenses).toHaveLength(0);
+    expect($('main').textContent).toContain('No expenses yet.');
+  });
+
+  it('validates the same way when editing', async () => {
+    const g = await withExpense();
+    await go(`#/group/${g.id}/expense/${g.expenses[0].id}`);
+    type($('#expense-amount'), '0');
+    await submit($('form'));
+    expect($('[role="alert"]').textContent).toContain('Enter an amount greater than 0');
+    expect(getGroup(g.id).expenses[0].amount).toBe(90000);
+  });
+
+  it('keeps tiyn when opening an expense', async () => {
+    const g = await setup();
+    await addExpense('Tea', '1200.5');
+    await go(`#/group/${g.id}/expense/${getGroup(g.id).expenses[0].id}`);
+    expect($('#expense-amount').value).toBe('1200.50');
+  });
+
+  it('shows Not found for an expense that does not exist', async () => {
+    const g = await setup();
+    await go(`#/group/${g.id}/expense/nope`);
+    expect($('main h1').textContent).toBe('Not found');
+  });
+
 });

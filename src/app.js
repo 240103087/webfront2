@@ -18,6 +18,8 @@ export function renderRoute(route) {
       return renderGroup(route.groupId);
     case 'new-expense':
       return renderExpenseForm(route.groupId);
+    case 'edit-expense':
+      return renderExpenseForm(route.groupId, route.expenseId);
     default:
       return renderNotFound();
   }
