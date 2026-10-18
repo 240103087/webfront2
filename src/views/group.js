@@ -1,6 +1,6 @@
 import { h } from '../dom.js';
 import { formatAmount } from '../money.js';
-import { totalSpent } from '../ledger.js';
+import { balances, totalSpent } from '../ledger.js';
 import { getGroup, saveGroup } from '../store.js';
 import { links, navigate } from '../router.js';
 import { renderNotFound } from './notFound.js';
@@ -42,6 +42,33 @@ export function renderGroup(groupId) {
       { class: 'actions' },
       h('a', { class: 'btn btn-primary', href: links.newExpense(group.id) }, 'Add expense'),
       h('a', { class: 'btn btn-secondary', href: links.editGroup(group.id) }, 'Edit group'),
+    ),
+  );
+
+  const balanceMap = balances(group);
+  const balancesPanel = h(
+    'section',
+    { class: 'panel', 'aria-labelledby': 'balances-heading' },
+    h('h2', { id: 'balances-heading' }, 'Balances'),
+    h(
+      'ul',
+      { class: 'list compact', 'data-testid': 'balances' },
+      group.members.map((m) => {
+        const value = balanceMap.get(m.id);
+        const state = value > 0 ? 'positive' : value < 0 ? 'negative' : 'zero';
+        const label = value > 0 ? 'gets back' : value < 0 ? 'owes' : 'settled';
+        return h(
+          'li',
+          { class: `balance ${state}`, 'data-member': m.name },
+          h('span', {}, m.name),
+          h(
+            'span',
+            { class: 'balance-value' },
+            h('span', { class: 'muted' }, `${label} `),
+            (value > 0 ? '+' : '') + formatAmount(value),
+          ),
+        );
+      }),
     ),
   );
 
@@ -93,5 +120,5 @@ export function renderGroup(groupId) {
         ),
   );
 
-  return h('section', {}, header, expensesPanel);
+  return h('section', {}, header, h('div', { class: 'grid' }, h('div', {}, balancesPanel), expensesPanel));
 }

@@ -51,3 +51,19 @@ export function expenseShares(group, expense) {
 export function totalSpent(group) {
   return group.expenses.reduce((sum, e) => sum + e.amount, 0);
 }
+
+/**
+ * Balance per member in tiyn: what they paid minus their shares.
+ * Positive means the group owes them, negative means they owe the group.
+ * Returns a Map in member order; the values always sum to 0.
+ */
+export function balances(group) {
+  const result = new Map(group.members.map((m) => [m.id, 0]));
+  for (const e of group.expenses) {
+    result.set(e.paidBy, result.get(e.paidBy) + e.amount);
+    for (const share of expenseShares(group, e)) {
+      result.set(share.memberId, result.get(share.memberId) - share.amount);
+    }
+  }
+  return result;
+}
