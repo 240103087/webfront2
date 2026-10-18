@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { createGroup } from '../src/groups.js';
-import { balances, expenseShares, makeExpense, totalSpent, validateExpense } from '../src/ledger.js';
+import {
+  activity,
+  balances,
+  expenseShares,
+  makeExpense,
+  makePayment,
+  totalSpent,
+  validateExpense,
+} from '../src/ledger.js';
 
 function trip() {
   const g = createGroup('Trip', ['Aida', 'Dias', 'Erlan']);
@@ -45,16 +53,6 @@ describe('expenseShares', () => {
   });
 });
 
-describe('totalSpent', () => {
-  it('adds up all expenses', () => {
-    const { g, a } = trip();
-    expect(totalSpent(g)).toBe(0);
-    g.expenses.push(makeExpense({ description: 'x', amount: 100, paidBy: a, splitBetween: [a] }));
-    g.expenses.push(makeExpense({ description: 'y', amount: 250, paidBy: a, splitBetween: [a] }));
-    expect(totalSpent(g)).toBe(350);
-  });
-});
-
 describe('balances', () => {
   it('is zero for everyone with no expenses', () => {
     const { g } = trip();
@@ -79,6 +77,13 @@ describe('balances', () => {
     expect(balances(g).get(d)).toBe(-1001);
   });
 
+  it('a payment moves both sides towards 0', () => {
+    const { g, a, e } = trip();
+    g.expenses.push(makeExpense({ description: 'x', amount: 300, paidBy: a, splitBetween: [a, e] }));
+    g.payments.push(makePayment({ from: e, to: a, amount: 150 }));
+    expect([...balances(g).values()]).toEqual([0, 0, 0]);
+  });
+
   it('stays exact for awkward amounts', () => {
     const { g, a, d, e } = trip();
     for (let i = 1; i <= 50; i++) {
@@ -88,3 +93,13 @@ describe('balances', () => {
   });
 });
 
+describe('totalSpent and activity', () => {
+  it('totals expenses only and lists everything newest first', () => {
+    const { g, a, d } = trip();
+    g.expenses.push(makeExpense({ description: 'first', amount: 100, paidBy: a, splitBetween: [a] }, 1));
+    g.payments.push(makePayment({ from: d, to: a, amount: 50 }, 3));
+    g.expenses.push(makeExpense({ description: 'second', amount: 200, paidBy: a, splitBetween: [a] }, 2));
+    expect(totalSpent(g)).toBe(300);
+    expect(activity(g).map((x) => x.item.createdAt)).toEqual([3, 2, 1]);
+  });
+});

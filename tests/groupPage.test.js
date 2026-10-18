@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest';
-import { $, $$, go, startApp, submit, type } from './helpers.js';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { $, $$, click, go, startApp, submit, type } from './helpers.js';
+
+afterEach(() => vi.restoreAllMocks());
 import { createGroup } from '../src/groups.js';
 import { makeExpense } from '../src/ledger.js';
 import { getGroup, saveGroup } from '../src/store.js';
@@ -52,7 +54,7 @@ describe('settle up', () => {
 
   it('lists the transfers', async () => {
     await trip([[900000, 0, [0, 1, 2]]]);
-    const rows = $$('[data-testid="settle-plan"] li').map((li) => li.textContent);
+    const rows = $$('[data-testid="settle-plan"] li').map((li) => li.querySelector('span').textContent);
     expect(rows).toEqual(['Dias pays Aida 3\u00a0000\u00a0₸', 'Erlan pays Aida 3\u00a0000\u00a0₸']);
   });
 
@@ -60,5 +62,49 @@ describe('settle up', () => {
     await trip([[100000, 0, [1]], [100000, 1, [0]]]);
     expect($('[data-testid="settle-plan"]')).toBeNull();
     expect($('[data-testid="all-settled"]').textContent).toBe('All settled up.');
+  });
+});
+
+describe('mark as paid', () => {
+  it('Mark as paid records a payment, updates balances and the plan', async () => {
+    const g = await trip([[900000, 0, [0, 1, 2]]]);
+    await click($$('[data-testid="settle-plan"] button')[0]);
+    const [p] = getGroup(g.id).payments;
+    expect(p).toMatchObject({ from: g.members[1].id, to: g.members[0].id, amount: 300000 });
+    expect(balanceText('Dias')).toBe('settled 0 ₸');
+    expect($$('[data-testid="settle-plan"] li')).toHaveLength(1);
+    expect($('[data-testid="activity"]').textContent).toContain('Dias paid Aida');
+  });
+
+  it('says All settled up when every transfer is paid', async () => {
+    await trip([[900000, 0, [0, 1, 2]]]);
+    await click($$('[data-testid="settle-plan"] button')[0]);
+    await click($$('[data-testid="settle-plan"] button')[0]);
+    expect($('[data-testid="all-settled"]').textContent).toBe('All settled up.');
+  });
+
+  it('deleting a payment brings the debt back, after confirmation', async () => {
+    const g = await trip([[900000, 0, [0, 1, 2]]]);
+    await click($$('[data-testid="settle-plan"] button')[0]);
+    vi.spyOn(window, 'confirm').mockReturnValueOnce(true);
+    await click($('[aria-label="Delete payment from Dias to Aida"]'));
+    expect(getGroup(g.id).payments).toEqual([]);
+    expect($$('[data-testid="settle-plan"] li')).toHaveLength(2);
+  });
+
+  it('a member with a payment cannot be removed', async () => {
+    const g = await trip([[900000, 0, [0, 1]]]);
+    await click($$('[data-testid="settle-plan"] button')[0]);
+    await go(`#/group/${g.id}/edit`);
+    expect($$('.member-row button').map((b) => b.disabled)).toEqual([true, true, false]);
+  });
+
+  it('payments survive a reload', async () => {
+    const g = await trip([[900000, 0, [0, 1, 2]]]);
+    await click($$('[data-testid="settle-plan"] button')[0]);
+    await go('#/');
+    await go(`#/group/${g.id}`);
+    expect($('[data-testid="activity"]').textContent).toContain('Dias paid Aida');
+    expect(getGroup(g.id).payments).toHaveLength(1);
   });
 });

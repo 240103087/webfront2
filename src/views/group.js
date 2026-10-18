@@ -1,6 +1,6 @@
 import { h } from '../dom.js';
 import { formatAmount } from '../money.js';
-import { balances, totalSpent } from '../ledger.js';
+import { activity, balances, makePayment, totalSpent } from '../ledger.js';
 import { settlePlan } from '../settle.js';
 import { getGroup, saveGroup } from '../store.js';
 import { links, navigate } from '../router.js';
@@ -100,58 +100,97 @@ export function renderGroup(groupId) {
                 ' ',
                 formatAmount(t.amount),
               ),
-            ),
-          ),
-        ),
-  );
-
-  const expenses = [...group.expenses].sort((a, b) => b.createdAt - a.createdAt);
-  const expensesPanel = h(
-    'section',
-    { class: 'panel', 'aria-labelledby': 'activity-heading' },
-    h('h2', { id: 'activity-heading' }, 'Expenses'),
-    expenses.length === 0
-      ? h('p', { class: 'muted' }, 'No expenses yet. Add the first one.')
-      : h(
-          'ul',
-          { class: 'list', 'data-testid': 'activity' },
-          expenses.map((e) =>
-            h(
-              'li',
-              { class: 'activity expense' },
-              h(
-                'a',
-                { class: 'list-item', href: links.editExpense(group.id, e.id) },
-                h(
-                  'span',
-                  { class: 'list-title' },
-                  e.description,
-                  h('span', { class: 'amount' }, formatAmount(e.amount)),
-                ),
-                h(
-                  'span',
-                  { class: 'muted' },
-                  `${nameOf(e.paidBy)} paid · split between ${splitText(e)} · ${dateFormat.format(e.createdAt)}`,
-                ),
-              ),
               h(
                 'button',
                 {
                   type: 'button',
                   class: 'btn btn-secondary btn-small',
-                  'aria-label': `Delete ${e.description}`,
                   onclick: () => {
-                    if (!confirm(`Delete "${e.description}"?`)) return;
-                    group.expenses = group.expenses.filter((x) => x.id !== e.id);
+                    group.payments = group.payments ?? [];
+                    group.payments.push(makePayment(t));
                     save();
                   },
                 },
-                'Delete',
+                'Mark as paid',
               ),
             ),
           ),
         ),
   );
 
-  return h('section', {}, header, h('div', { class: 'grid' }, h('div', {}, balancesPanel, settlePanel), expensesPanel));
+  function expenseRow(e) {
+    return h(
+      'li',
+      { class: 'activity expense' },
+      h(
+        'a',
+        { class: 'list-item', href: links.editExpense(group.id, e.id) },
+        h('span', { class: 'list-title' }, e.description, h('span', { class: 'amount' }, formatAmount(e.amount))),
+        h(
+          'span',
+          { class: 'muted' },
+          `${nameOf(e.paidBy)} paid · split between ${splitText(e)} · ${dateFormat.format(e.createdAt)}`,
+        ),
+      ),
+      h(
+        'button',
+        {
+          type: 'button',
+          class: 'btn btn-secondary btn-small',
+          'aria-label': `Delete ${e.description}`,
+          onclick: () => {
+            if (!confirm(`Delete "${e.description}"?`)) return;
+            group.expenses = group.expenses.filter((x) => x.id !== e.id);
+            save();
+          },
+        },
+        'Delete',
+      ),
+    );
+  }
+
+  function paymentRow(p) {
+    const label = `${nameOf(p.from)} paid ${nameOf(p.to)}`;
+    return h(
+      'li',
+      { class: 'activity payment' },
+      h(
+        'div',
+        { class: 'list-item' },
+        h('span', { class: 'list-title' }, label, h('span', { class: 'amount' }, formatAmount(p.amount))),
+        h('span', { class: 'muted' }, `Payment · ${dateFormat.format(p.createdAt)}`),
+      ),
+      h(
+        'button',
+        {
+          type: 'button',
+          class: 'btn btn-secondary btn-small',
+          'aria-label': `Delete payment from ${nameOf(p.from)} to ${nameOf(p.to)}`,
+          onclick: () => {
+            if (!confirm(`Delete the payment "${label}"?`)) return;
+            group.payments = group.payments.filter((x) => x.id !== p.id);
+            save();
+          },
+        },
+        'Delete',
+      ),
+    );
+  }
+
+  // Expenses and payments together, newest first
+  const items = activity(group);
+  const activityPanel = h(
+    'section',
+    { class: 'panel', 'aria-labelledby': 'activity-heading' },
+    h('h2', { id: 'activity-heading' }, 'Expenses and payments'),
+    items.length === 0
+      ? h('p', { class: 'muted' }, 'No expenses yet. Add the first one.')
+      : h(
+          'ul',
+          { class: 'list', 'data-testid': 'activity' },
+          items.map(({ type, item }) => (type === 'expense' ? expenseRow(item) : paymentRow(item))),
+        ),
+  );
+
+  return h('section', {}, header, h('div', { class: 'grid' }, h('div', {}, balancesPanel, settlePanel), activityPanel));
 }

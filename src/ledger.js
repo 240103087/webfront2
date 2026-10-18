@@ -53,8 +53,9 @@ export function totalSpent(group) {
 }
 
 /**
- * Balance per member in tiyn: what they paid minus their shares.
- * Positive means the group owes them, negative means they owe the group.
+ * Balance per member in tiyn: what they paid minus their shares, plus
+ * payments sent, minus payments received. A payment from A to B
+ * moves A towards 0 from below and B towards 0 from above.
  * Returns a Map in member order; the values always sum to 0.
  */
 export function balances(group) {
@@ -65,5 +66,22 @@ export function balances(group) {
       result.set(share.memberId, result.get(share.memberId) - share.amount);
     }
   }
+  for (const p of group.payments ?? []) {
+    result.set(p.from, result.get(p.from) + p.amount);
+    result.set(p.to, result.get(p.to) - p.amount);
+  }
   return result;
+}
+
+export function makePayment({ from, to, amount }, now = Date.now()) {
+  return { id: newId(), from, to, amount, createdAt: now };
+}
+
+/** Expenses and payments together, newest first. */
+export function activity(group) {
+  const items = [
+    ...group.expenses.map((e) => ({ type: 'expense', item: e })),
+    ...(group.payments ?? []).map((p) => ({ type: 'payment', item: p })),
+  ];
+  return items.sort((a, b) => b.item.createdAt - a.item.createdAt);
 }
