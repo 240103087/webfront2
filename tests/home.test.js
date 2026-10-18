@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { $, $$, go, startApp } from './helpers.js';
 import { createGroup } from '../src/groups.js';
+import { makeExpense } from '../src/ledger.js';
 import { saveGroup } from '../src/store.js';
 
 describe('home screen', () => {
@@ -10,17 +11,19 @@ describe('home screen', () => {
     expect($('a[href="#/new"]').textContent).toBe('New group');
   });
 
-  it('lists groups newest first with member count', async () => {
+  it('lists groups newest first with member count and total spent', async () => {
     await startApp('#/');
     const old = createGroup('Old trip', ['A', 'B'], 1);
     const fresh = createGroup('Birthday', ['A', 'B', 'C'], 2);
+    fresh.expenses.push(makeExpense({ description: 'Cake', amount: 1500000, paidBy: fresh.members[0].id, splitBetween: [fresh.members[0].id] }));
     saveGroup(old);
     saveGroup(fresh);
     await go('#/new');
     await go('#/');
     const items = $$('[data-testid="group-list"] li');
     expect(items.map((li) => li.querySelector('.list-title').textContent)).toEqual(['Birthday', 'Old trip']);
-    expect(items[0].textContent).toContain('3 members');
+    expect(items[0].textContent).toContain('3 members · 15\u00a0000\u00a0₸ spent');
+    expect(items[1].textContent).toContain('2 members · 0\u00a0₸ spent');
     expect(items[0].querySelector('a').getAttribute('href')).toBe(`#/group/${fresh.id}`);
   });
 

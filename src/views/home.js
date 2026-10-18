@@ -1,4 +1,6 @@
 import { h } from '../dom.js';
+import { formatAmount } from '../money.js';
+import { totalSpent } from '../ledger.js';
 import { listGroups } from '../store.js';
 import { links } from '../router.js';
 
@@ -42,7 +44,11 @@ export function renderHome() {
             'a',
             { class: 'list-item', href: links.group(g.id) },
             h('span', { class: 'list-title' }, g.name),
-            h('span', { class: 'muted' }, `${g.members.length} members`),
+            h(
+              'span',
+              { class: 'muted' },
+              `${g.members.length} members · ${formatAmount(totalSpent(g))} spent`,
+            ),
           ),
         ),
       ),

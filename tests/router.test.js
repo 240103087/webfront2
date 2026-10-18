@@ -9,6 +9,8 @@ describe('parseRoute', () => {
     ['#/new', { name: 'new-group' }],
     ['#/group/abc', { name: 'group', groupId: 'abc' }],
     ['#/group/abc/edit', { name: 'edit-group', groupId: 'abc' }],
+    ['#/group/abc/expense/new', { name: 'new-expense', groupId: 'abc' }],
+    ['#/group/abc/expense', { name: 'not-found' }],
     ['#/group', { name: 'not-found' }],
     ['#/something/else', { name: 'not-found' }],
   ])('%j', (hash, route) => {

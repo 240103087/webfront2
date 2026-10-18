@@ -3,6 +3,7 @@ import { links, parseRoute } from './router.js';
 import { renderHome } from './views/home.js';
 import { renderGroupForm } from './views/groupForm.js';
 import { renderGroup } from './views/group.js';
+import { renderExpenseForm } from './views/expenseForm.js';
 import { renderNotFound } from './views/notFound.js';
 
 export function renderRoute(route) {
@@ -15,6 +16,8 @@ export function renderRoute(route) {
       return renderGroupForm(route.groupId);
     case 'group':
       return renderGroup(route.groupId);
+    case 'new-expense':
+      return renderExpenseForm(route.groupId);
     default:
       return renderNotFound();
   }
