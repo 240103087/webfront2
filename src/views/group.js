@@ -1,6 +1,7 @@
 import { h } from '../dom.js';
 import { formatAmount } from '../money.js';
 import { balances, totalSpent } from '../ledger.js';
+import { settlePlan } from '../settle.js';
 import { getGroup, saveGroup } from '../store.js';
 import { links, navigate } from '../router.js';
 import { renderNotFound } from './notFound.js';
@@ -72,6 +73,38 @@ export function renderGroup(groupId) {
     ),
   );
 
+  const plan = settlePlan(balanceMap);
+  const settlePanel = h(
+    'section',
+    { class: 'panel', 'aria-labelledby': 'settle-heading' },
+    h('h2', { id: 'settle-heading' }, 'Settle up'),
+    plan.length === 0
+      ? h(
+          'p',
+          { class: 'settled', 'data-testid': 'all-settled' },
+          group.expenses.length ? 'All settled up.' : 'Nothing to settle yet.',
+        )
+      : h(
+          'ul',
+          { class: 'list compact', 'data-testid': 'settle-plan' },
+          plan.map((t) =>
+            h(
+              'li',
+              { class: 'transfer' },
+              h(
+                'span',
+                {},
+                h('strong', {}, nameOf(t.from)),
+                ' pays ',
+                h('strong', {}, nameOf(t.to)),
+                ' ',
+                formatAmount(t.amount),
+              ),
+            ),
+          ),
+        ),
+  );
+
   const expenses = [...group.expenses].sort((a, b) => b.createdAt - a.createdAt);
   const expensesPanel = h(
     'section',
@@ -120,5 +153,5 @@ export function renderGroup(groupId) {
         ),
   );
 
-  return h('section', {}, header, h('div', { class: 'grid' }, h('div', {}, balancesPanel), expensesPanel));
+  return h('section', {}, header, h('div', { class: 'grid' }, h('div', {}, balancesPanel, settlePanel), expensesPanel));
 }

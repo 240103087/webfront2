@@ -43,3 +43,22 @@ describe('balances', () => {
     expect(getGroup(g.id).expenses[0].amount).toBe(30000);
   });
 });
+
+describe('settle up', () => {
+  it('says Nothing to settle yet with no expenses', async () => {
+    await trip();
+    expect($('[data-testid="all-settled"]').textContent).toBe('Nothing to settle yet.');
+  });
+
+  it('lists the transfers', async () => {
+    await trip([[900000, 0, [0, 1, 2]]]);
+    const rows = $$('[data-testid="settle-plan"] li').map((li) => li.textContent);
+    expect(rows).toEqual(['Dias pays Aida 3\u00a0000\u00a0₸', 'Erlan pays Aida 3\u00a0000\u00a0₸']);
+  });
+
+  it('says All settled up when expenses cancel out', async () => {
+    await trip([[100000, 0, [1]], [100000, 1, [0]]]);
+    expect($('[data-testid="settle-plan"]')).toBeNull();
+    expect($('[data-testid="all-settled"]').textContent).toBe('All settled up.');
+  });
+});
