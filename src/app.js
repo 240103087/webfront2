@@ -1,23 +1,14 @@
 import { h } from './dom.js';
 import { links, parseRoute } from './router.js';
+import { renderHome } from './views/home.js';
 import { renderGroupForm } from './views/groupForm.js';
 import { renderGroup } from './views/group.js';
 import { renderNotFound } from './views/notFound.js';
 
-// Until #6 builds the list of groups.
-function renderHomePlaceholder() {
-  return h(
-    'section',
-    { class: 'page-header' },
-    h('h1', { class: 'page-heading' }, 'My groups'),
-    h('a', { class: 'btn btn-primary', href: links.newGroup() }, 'New group'),
-  );
-}
-
 export function renderRoute(route) {
   switch (route.name) {
     case 'home':
-      return renderHomePlaceholder();
+      return renderHome();
     case 'new-group':
       return renderGroupForm();
     case 'edit-group':
@@ -47,6 +38,8 @@ export function mountApp(root) {
   );
   const render = () => {
     main.replaceChildren(renderRoute(parseRoute(location.hash)));
+    // A new screen starts at the top, like a new page would.
+    document.documentElement.scrollTop = 0;
   };
   window.addEventListener('hashchange', render);
   render();
