@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { mountApp } from '../src/app.js';
 
-describe('app', () => {
-  it('mounts into #app and shows the name', () => {
+describe('app shell', () => {
+  it('renders the header with the logo linking home, and a main container', () => {
     document.body.innerHTML = '<div id="app"></div>';
     mountApp(document.getElementById('app'));
-    expect(document.getElementById('app').textContent).toContain('Bolis');
+    const logo = document.querySelector('.app-header .logo');
+    expect(logo.textContent).toBe('Bolis');
+    expect(logo.getAttribute('href')).toBe('#/');
+    expect(document.querySelector('.app-header').textContent).toContain('split trip expenses');
+    expect(document.querySelector('main.container')).not.toBeNull();
   });
 });
